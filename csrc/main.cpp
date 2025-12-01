@@ -7,7 +7,6 @@
 #include <list>
 #include <cstring>
 #include "local_search.hpp"
-#include "lasp.h"
 
 namespace py = pybind11;
 
@@ -158,83 +157,6 @@ py::array_t<int> local_search_2opt(py::array_t<double> C, py::array_t<int> Path,
     return res;
 }
 
-std::tuple<py::array_t<int>, py::array_t<int>, bool> solve_lasp(
-    py::array_t<double> C, py::array_t<double> u, py::array_t<double> v){
-    auto row = py::array_t<int>(u.size());
-    auto col = py::array_t<int>(v.size());
-    bool succ = false;
-
-    py::buffer_info C_buf = C.request();
-    py::buffer_info u_buf = u.request();
-    py::buffer_info v_buf = v.request();
-    py::buffer_info row_buf = row.request();
-    py::buffer_info col_buf = col.request();
-
-    
-    int nnode = u.size();
-    if(u.size() != v.size()) return std::make_tuple(row, col, succ);
-    if(C.ndim() != 2) return std::make_tuple(row, col, succ);
-    if(C.shape(0) != nnode) return std::make_tuple(row, col, succ);
-    if(C.shape(1) != nnode) return std::make_tuple(row, col, succ);
-
-    int res = solve_square_lasp(nnode,
-		    static_cast<double *>(C_buf.ptr),
-		    static_cast<int *>(row_buf.ptr),
-		    static_cast<int *>(col_buf.ptr),
-		    static_cast<double *>(u_buf.ptr),
-		    static_cast<double *>(v_buf.ptr)
-	);
-
-    if(res != 0) succ = false;
-    else succ = true;
-
-
-    return std::make_tuple(row, col, succ);
-}
-
-
-// py::array_t<int> local_search_2opt(py::array_t<double> C, py::array_t<int> Path){
-//     auto res = py::array_t<int>(Path.size());
-//     int d = Path.size();
-
-//     py::buffer_info Path_buf = Path.request();
-//     py::buffer_info res_buf = res.request();
-//     py::buffer_info C_buf = C.request();
-
-//     int *ptr_res = static_cast<int *>(res_buf.ptr);
-//     int *ptr_inv_path = new int[d];
-//     int *ptr_Path = static_cast<int *>(Path_buf.ptr);
-//     double *ptr_C = static_cast<double *>(C_buf.ptr);
-    
-//     for(int i = 0; i < d; i++){
-//         ptr_res[i] = ptr_Path[i];
-//         ptr_inv_path[ptr_Path[i]] = i;
-//     }
-//     bool updated = true;
-//     while(updated){
-//         updated = false;
-//         for(int i = 0; i < d; i++){
-//             int prev_i = ptr_inv_path[i];
-//             int next_i = ptr_res[i];
-//             int next_next_i = ptr_res[next_i];
-
-//             double c_local_length = ptr_C[prev_i * d + i] + ptr_C[i * d + next_i] + ptr_C[next_i * d + next_next_i];
-//             double c_pimprov_length = ptr_C[prev_i * d + next_i] + ptr_C[next_i * d + i] + ptr_C[i * d + next_next_i];
-//             if(c_pimprov_length < c_local_length){
-//                 ptr_res[prev_i] = next_i;
-//                 ptr_inv_path[next_i] = prev_i;
-//                 ptr_res[next_i] = i;
-//                 ptr_inv_path[i] = next_i;
-//                 ptr_res[i] = next_next_i;
-//                 ptr_inv_path[next_next_i] = i;
-//                 updated=true;
-//             }
-//         }
-
-//     }
-//     delete []ptr_inv_path;
-//     return res;
-// }
 
 
 
@@ -388,5 +310,4 @@ PYBIND11_MODULE(partial_dag_model, m) {
     m.def("partial_tsp", &partial_tsp, "return the partial TSP problem");
     m.def("local_search_2opt", &local_search_2opt, "local search use 2opt");
     m.def("decodeNNTSP", &decodeNNTSP, "decode from assignment using NN");
-    m.def("solve_lasp", &solve_lasp, "solve lasp, reuse dual u and v");
 }
