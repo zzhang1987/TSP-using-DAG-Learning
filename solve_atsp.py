@@ -9,6 +9,9 @@ from tqdm import tqdm
 import random
 import json
 import partial_dag_model
+from run_lkh import create_lkh_file
+import lkh
+
 
 def perm_to_tour(perm):
     res = []
@@ -58,15 +61,15 @@ def solve_TSP(C_, max_loop_cnt=20, visited=None, mu=1.0):
         succ, tour = perm_to_tour(Path)
     
         if succ:
+            clength = np.sum(C_[row, Path])
+            if clength < best_len:
+                best_len = clength 
+                best_tour = Path
             break
         else:
             start_node = np.random.randint(0, nnode)
-            _, tour = partial_dag_model.decodeNNTSP(C_.reshape(-1), Path, start_node)
-            nPath = np.zeros(nnode, dtype=np.int32)
-            for i_ in range(nnode):
-                i = tour[i_]
-                j = tour[(i_ + 1) % nnode]
-                nPath[i] = j 
+            _, nPath = partial_dag_model.decodeNNTSP(C_.reshape(-1), Path, start_node)
+        
 
             # nPath = partial_dag_model.local_search_2opt(C_.reshape(-1), nPath)
             clength = np.sum(C_[row, nPath])
@@ -112,7 +115,7 @@ def solve_TSP(C_, max_loop_cnt=20, visited=None, mu=1.0):
     return succ, row, Path, visited, best_tour
 
     
-nnode = 20
+nnode = 100
 ninstances = 1
 all_matrices = np.zeros([ninstances, nnode, nnode])
 
@@ -161,5 +164,13 @@ for i in tqdm(range(0, ninstances)):
 
     end = time.time()
     
-    print('time = {} length = {}'.format(end - start, c_length_))
+    print('time = {} our length = {}'.format(end - start, c_length_))
+    lkh_file_name = '/tmp/nnode_{}_instance_{}.lkh'.format(nnode, i)
+    create_lkh_file(C, lkh_file_name, scale=1000000)
+    start = time.time()
+    res = lkh.solve(problem_file=lkh_file_name, runs=1, max_trials=500)
+    end = time.time()
+    lkh_time = end -start
+    lkh_length = tour_len(C, [idx - 1 for idx in res[0]])
+    print('time = {} lkh length = {}'.format(lkh_time, lkh_length))
 
